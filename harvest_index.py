@@ -9,7 +9,8 @@ which capture it was found in (provenance).
 Output: index.json
 """
 
-import json, re, time, os
+import json, re, time, os, sys
+from datetime import date, timedelta
 from collections import Counter
 from urllib.parse import urljoin, urlparse
 import requests
@@ -181,6 +182,117 @@ def parse_capture(record, phase, save):
     return found
 
 
+def expand_frontier():
+    payload = json.load(open(OUT))
+    articles = {canonical(a["url"]): a for a in payload["articles"]}
+    state = payload.setdefault("frontier", {"queries": [], "daily_candidates": {}, "captures": {}})
+    before = {a.get("content_id") for a in articles.values() if a.get("content_id")}
+
+    def save():
+        payload.update(count=len(articles), generated_at=now(),
+                       unique_legacy_content_ids=sum("content_id" in a for a in articles.values()),
+                       kind_buckets=dict(Counter(a["kind"] for a in articles.values())),
+                       articles=sorted(articles.values(), key=lambda a: a["url"]))
+        with open(OUT + ".tmp", "w") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+        os.replace(OUT + ".tmp", OUT)
+
+    def query(pattern, **extra):
+        params = dict(url=pattern, output="json", fl="timestamp,original", filter="statuscode:200",
+                      collapse="urlkey")
+        params.update(extra)
+        prior = next((q for q in state["queries"] if q["params"] == params and q["outcome"] == "ok"), None)
+        if prior:
+            return prior["rows"]
+        q = {"params": params, "history": [], "outcome": "pending"}
+        state["queries"].append(q)
+        r = request_with_backoff("https://web.archive.org/cdx/search/cdx", q["history"], save, "frontier-cdx", params)
+        if r is None:
+            q["outcome"] = "failed"
+            save()
+            return None
+        try:
+            q.update(rows=r.json()[1:], outcome="ok")
+        except ValueError as e:
+            q.update(outcome="failed", error_type="InvalidJSON", error=str(e))
+        save()
+        return q.get("rows")
+
+    def schedule(ts, original):
+        key = clean_url(original) + "|" + ts
+        state["captures"].setdefault(key, {"seed": clean_url(original), "original": original,
+            "timestamp": ts, "capture_url": f"https://web.archive.org/web/{ts}/{original}",
+            "outcome": "pending", "history": []})
+
+    # Task 2a results are reported before this command is run; only section/daily
+    # frontier rows are replayed, never arbitrary writers' author pages.
+    for report in state.get("pattern_reports", []):
+        if "around-the-league" in report["pattern"]:
+            for ts, original in report.get("rows", []):
+                schedule(ts, original)
+
+    promoted = [a["url"] for a in articles.values() if a["kind"] in ("index", "pagination")
+                and "/around-the-league/" in a["url"]]
+    for u in promoted:
+        rows = query(u)
+        for ts, original in rows or []:
+            schedule(ts, original)
+
+    # A year-wide prefix query plus exact original-URL filter batches hundreds
+    # of mechanical daily candidates into one CDX request, one capture per URL.
+    for year in range(2014, 2019):
+        days = []
+        d = date(year, 1, 1)
+        while d.year == year:
+            days.append(d)
+            d += timedelta(days=1)
+        days.sort(key=lambda d: (d.month not in (8,9,10,11,12,1,2), d))
+        rows = query("nfl.com/news/around-the-league/*",
+                     **{"filter": ["statuscode:200", f"original:.*/[0-9]{{2}}-[0-9]{{2}}-{year}([?].*)?$" ]})
+        found = {}
+        for ts, original in rows or []:
+            found.setdefault(clean_url(original), []).append([ts, original])
+        for d in days:
+            u = "https://www.nfl.com/news/around-the-league/" + d.strftime("%m-%d-%Y")
+            matches = found.get(u, [])
+            candidate = state["daily_candidates"].setdefault(u, {"year": year, "history": []})
+            outcome = "query_failed" if rows is None else "captured" if matches else "no_capture"
+            candidate.update(outcome=outcome, captures=matches)
+            candidate["history"].append({"at": now(), "outcome": outcome})
+            for ts, original in matches:
+                schedule(ts, original)
+        save()
+        print(f"daily {year}: candidates={len(days)} captured={len(found)} query={'failed' if rows is None else 'ok'}", flush=True)
+
+    queue = []
+    for phase in ("initial", "retry"):
+        records = list(state["captures"].values()) if phase == "initial" else queue
+        for record in records:
+            if record["outcome"] == "parsed":
+                continue
+            hits = parse_capture(record, "frontier-" + phase, save)
+            if hits is None:
+                if phase == "initial":
+                    queue.append(record)
+                continue
+            for u, title in hits:
+                add_article(articles, {"url": u, "title": title, "status": "pending",
+                    "byline_source": "section-page", "discovered_via": record["seed"],
+                    "discovered_in_capture": record["timestamp"], "capture_url": record["capture_url"]})
+            record.update(outcome="parsed", hits=len(hits), parsed_at=now())
+            save()
+            print(f"frontier {record['timestamp']}: hits={len(hits)} identities={len(articles)}", flush=True)
+    after = {a.get("content_id") for a in articles.values() if a.get("content_id")}
+    summary = {"at": now(), "new_content_ids": len(after-before),
+               "fetch_eligible": sum(a["kind"] in ("article", "unknown") for a in articles.values()),
+               "capture_years": dict(Counter(r["timestamp"][:4] for r in state["captures"].values())),
+               "capture_outcomes": dict(Counter(r["outcome"] for r in state["captures"].values())),
+               "daily_outcomes": dict(Counter(d["outcome"] for d in state["daily_candidates"].values()))}
+    state.setdefault("runs", []).append(summary)
+    save()
+    print(json.dumps(summary), flush=True)
+
+
 def main():
     payload = json.load(open(OUT)) if os.path.exists(OUT) else {}
     articles = {}
@@ -261,4 +373,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    expand_frontier() if "--frontier" in sys.argv else main()

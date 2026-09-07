@@ -1,5 +1,6 @@
 .venv/
 articles/
 *.html
+!reader-prototype.html
 index.json
 __pycache__/

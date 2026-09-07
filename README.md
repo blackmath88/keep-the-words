@@ -1,74 +1,89 @@
 # Marc Sessler — Personal Article Archive
 
-A three-step pipeline that enumerates, retrieves and renders Marc Sessler's
-NFL.com writing (2012–2024, including the Around the League blog era) as a
-browsable single-file HTML archive with full provenance on every piece.
-
-Personal-use archive. Text remains © NFL Enterprises / the author.
-Don't republish it.
+Three Python scripts recover NFL.com writing into local Markdown and a
+single-file reader. Article text remains © NFL Enterprises / the author.
+Personal use only; do not republish it. Section-page harvesting also finds
+other writers, whose recovered articles are retained and labelled.
 
 ## Setup
 
-    python3 -m venv .venv && source .venv/bin/activate
-    pip install -r requirements.txt
+    python3 -m venv .venv
+    .venv/bin/python -m pip install -r requirements.txt
 
 ## Run
 
-    python3 harvest_index.py       # ~20-60 min. Writes index.json
-    python3 fetch_bodies.py 25     # test run: 25 articles -> articles/*.md
-    python3 fetch_bodies.py        # full run. Resumable, Ctrl-C safe
-    python3 build_reader.py        # writes sessler-archive.html
+    .venv/bin/python harvest_index.py
+    .venv/bin/python harvest_index.py --frontier
+    .venv/bin/python fetch_bodies.py 25
+    .venv/bin/python fetch_bodies.py --repair
+    .venv/bin/python fetch_bodies.py
+    .venv/bin/python build_reader.py
 
-Open `sessler-archive.html` in any browser. Nothing else needed.
+The 25-entry batch samples both legacy and modern candidates; its limit is
+attempted candidates, including failures. The full pass skips existing
+Markdown files. Never delete `articles/` to restart. `--repair` reuses saved
+HTML to repair thin bodies and expand partial modern extractions; previous
+successful versions are retained as `.md.before-repair` files.
 
-## How it works
+`reader-prototype.html` is the reader's source template. The generated
+`sessler-archive.html`, index, raw responses, rosters, and Markdown stay local.
+The source template is the sole exception to the HTML ignore rule.
 
-**harvest_index.py** — NFL.com article URLs are slug-based with no author
-token, so they can't be filtered by byline in the Wayback CDX API directly.
-Instead the script walks *historical captures of his author and index pages*
-(one per month, via CDX `collapse=timestamp:6`) and scrapes the article links
-out of each one. Every URL records the capture it was discovered in.
+## Harvest and frontier
 
-Edit `SEEDS` if you find more index pages — old `blogs.nfl.com` paths,
-the Around the League landing page, tag pages. More seeds, more coverage.
+`harvest_index.py` walks monthly Wayback captures of author/section pages.
+Legacy `/news/story/<id>/article/<slug>` and `/comments/<slug>` URLs share
+one content-ID identity. Entries retain both views and observed URLs.
+Modern URLs retain their URL identity. `kind` marks article, index, nav, or
+unknown entries; the fetcher excludes index/nav/pagination entries.
 
-**fetch_bodies.py** — tries live NFL.com first (cleaner markup), falls back
-to the closest Wayback snapshot. Extracts the body via known NFL.com
-selectors, then a densest-paragraph-container heuristic. Writes Markdown with
-a YAML frontmatter provenance block: original URL, what was actually
-retrieved, source type, wayback timestamp, HTTP status, which extractor
-matched, and when.
+`--frontier` uses the reported CDX pattern evidence stored under
+`index.json.frontier.pattern_reports`, promotes known daily/pagination
+indexes, and batch-queries mechanical daily URLs for 2014–2018. Each year
+is one prefix CDX query filtered to daily URL shapes, collapsed by URL.
+It records individual no-capture outcomes and crawls one hop only.
 
-`byline_verified` is set by checking whether "sessler" appears in the title,
-byline or opening text. Co-bylined Around the League posts are kept — the
-reader has a "verified byline only" toggle so you can filter rather than
-having to decide up front.
+Replay requests wait at least five seconds before each attempt. The shared
+`request_with_backoff()` helper retries connection errors, timeouts, 429,
+and 503: four attempts, 5/10/20-second backoff, then a 40-second cooldown.
+CDX has no replay delay. Harvest/frontier failures get one final retry pass.
+Parsed captures are skipped on rerun. Attempt histories survive recovery,
+and index writes are atomic. Run only one index-writing script at a time.
 
-**build_reader.py** — embeds everything in one HTML file. Full-text search,
-year and sort filters, byline toggle, serif reading column, and a provenance
-footer on each piece linking back to the original and the archived source.
+## Bodies and metadata
 
-## Tuning
+Legacy URLs skip dead live routes. The fetcher queries CDX for the article
+URL and takes the earliest HTTP 200 capture, falling back to the comments
+view. Modern articles try live NFL.com first, then Wayback. Raw HTML and
+structured HTTP/extraction outcomes are retained for diagnosis.
 
-- `SLEEP` in both scripts (5.0s replay / 1.5s body fetch) — be polite, don't lower it.
-- Harvest replay requests get four attempts with 5/10/20-second backoff
-  and a 40-second cooldown after the fourth transient failure. Failed
-  captures get one final retry pass. CDX calls have no replay delay.
-- `index.json` retains capture outcomes and attempt history, including
-  failures after recovery. Re-runs skip parsed captures; writes are atomic.
-- Legacy story identities use the content ID, retaining `body_url`,
-  `comments_url`, and observed URLs. Modern URLs retain URL identity.
-- Candidates have `kind`: article, index, nav, or unknown. The body fetcher
-  skips index and nav entries without deleting them.
-- `collapse="timestamp:6"` in harvest = one capture per month. Change to
-  `timestamp:8` for daily captures: far more coverage, far slower.
-- `AUTHOR_HINT` in fetch_bodies if you want stricter byline matching.
-- Failures are recorded in `index.json` as `failed:*`. Re-running only
-  retries what has no `.md` file yet.
+Body selectors include archived `.articleText`, existing NFL selectors,
+and all current `.story-part-rich-text-editor-wrapper` blocks in order.
+The densest direct-paragraph fallback remains for layouts not yet covered.
 
-## Expected reality
+Bylines come from explicit metadata, author elements, or article JSON-LD:
+`sessler`, `other:<name>`, or `unparsed`. Every successful recovery is kept.
+`content_id` and `byline_source` distinguish article identity and discovery
+source. Publication dates come from page metadata, including legacy
+`#article-time`; slug years and capture years are not publication dates.
+The reader records undated gaps under `index.json.reader_builds`.
 
-Coverage of 2019–2024 should be good. The 2012–2016 Around the League era
-will be patchy — those URLs died in NFL.com's CMS migrations and Wayback's
-coverage of blog index pages is uneven. Run the harvest, look at the count,
-then decide whether it's worth adding more seed pages.
+Enrichment uses deterministic rules only: fixed title regexes for series
+and format, a closed 32-team vocabulary with historical names, and full-name
+matches against cached nflverse season rosters for 2012–2024. No model API
+is used. These are literal matches and heuristics, not semantic analysis.
+
+## Reader and evidence
+
+The reader retains the prototype's paper/carbon modes, two grain layers,
+hash routes, j/k/Enter/Esc/slash shortcuts, filter chips, live tally, and
+View Transitions fallback. Facets cover year, series, format, team, player,
+and byline. Other writers and unread bylines are visible in the list.
+
+Each piece has recovered text, deterministic source/search links, and a
+provenance footer. Build-time link construction makes no network requests.
+The prototype's Google Fonts URLs remain; system fallbacks work offline.
+
+Findings are in `ARCHIVE-REPORT.md`, labelled with model and date, separate
+from article frontmatter. Detailed failures, absences, and histories remain
+in `index.json`; archived HTML remains in `articles/_raw/`.
