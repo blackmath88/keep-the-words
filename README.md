@@ -15,6 +15,7 @@ other writers, whose recovered articles are retained and labelled.
     .venv/bin/python harvest_index.py
     .venv/bin/python harvest_index.py --frontier
     .venv/bin/python fetch_bodies.py 25
+    .venv/bin/python fetch_bodies.py --reparse-bylines
     .venv/bin/python fetch_bodies.py --repair
     .venv/bin/python fetch_bodies.py
     .venv/bin/python build_reader.py
@@ -62,7 +63,13 @@ and all current `.story-part-rich-text-editor-wrapper` blocks in order.
 The densest direct-paragraph fallback remains for layouts not yet covered.
 
 Bylines come from explicit metadata, author elements, or article JSON-LD:
-`sessler`, `other:<name>`, or `unparsed`. Every successful recovery is kept.
+`byline_raw` preserves the full credit and `byline_verdict` is `sessler`,
+`other`, or `unparsed`, independent of body `status`. `byline_status` remains
+a compatibility label. `--reparse-bylines` audits cached HTML without downloads.
+Every successful recovery is kept. Scope is `sessler` (including joint credits),
+`atl-blog` (other credits discovered through ATL pages), or `unresolved`.
+There is no podcast-crew whitelist. Comment content is not collected; the
+legacy comments-view URL remains only as an article-body recovery route.
 `content_id` and `byline_source` distinguish article identity and discovery
 source. Publication dates come from page metadata, including legacy
 `#article-time`; slug years and capture years are not publication dates.
@@ -78,7 +85,9 @@ is used. These are literal matches and heuristics, not semantic analysis.
 The reader retains the prototype's paper/carbon modes, two grain layers,
 hash routes, j/k/Enter/Esc/slash shortcuts, filter chips, live tally, and
 View Transitions fallback. Facets cover year, series, format, team, player,
-and byline. Other writers and unread bylines are visible in the list.
+byline, and scope. The default scope is Sessler; the byline facet switches
+to ATL blog or unread bylines in one click. Full credits remain visible in
+the list, including joint credits.
 
 Each piece has recovered text, deterministic source/search links, and a
 provenance footer. Build-time link construction makes no network requests.
@@ -87,3 +96,9 @@ The prototype's Google Fonts URLs remain; system fallbacks work offline.
 Findings are in `ARCHIVE-REPORT.md`, labelled with model and date, separate
 from article frontmatter. Detailed failures, absences, and histories remain
 in `index.json`; archived HTML remains in `articles/_raw/`.
+
+Full fetch checkpoints every 200 recovered articles persist source splits,
+writer credits and joint bylines, scope, and cumulative failure classes.
+An eight-percentage-point drift from the 16% section-page probe is flagged
+as a possible month/ID coverage effect. Failed attempts remain in history
+even when a later retry succeeds.

@@ -62,3 +62,13 @@ Population: 1,355 unrecovered article entries with exact `byline_source == secti
 Scope totals within other: 28 named ATL crew, 50 other named NFL.com staff, 3 generic Around The NFL staff. No joint named bylines in this sample.
 
 98 bodies recovered; 2 failed body extraction but retained readable meta bylines (Kevin Patra and Chris Wesseling). Those two count as other. The 3 unread bylines are on recovered articles. No further fetch pass was started.
+
+## Full ATL pass — scope correction, 2026-09-07
+
+Analysis: GPT-6 (Codex), 2026-09-07. The earlier podcast-crew versus other-staff classification is superseded by the user's discovery-based scope decision. All recovered articles are retained. Other named credits from ATL section/pagination captures, including generic Around The NFL staff credits, belong to `atl-blog`; Sessler credits (including joint bylines) belong to `sessler`; absent bylines remain `unresolved`. No writer whitelist is used.
+
+The cache audit scanned 253 saved pages and found 0 additional previously-unread records with names. The 2 probe body failures had already gained their readable bylines in the preceding sample audit. Byline parsing now runs before body validation and preserves evidence independently of body status. All 244 existing recovered Markdown records were migrated to byline_raw, byline_verdict and scope without changing their bodies.
+
+Comment content is absent from the active article schema and reader. The legacy comments_url remains solely as the explicitly retained article-recovery fallback. The negative widget probe above remains evidence.
+
+A temporary reader build structurally verified 274 recovered articles while fetching continued: JavaScript syntax, unique IDs, default Sessler scope, one-click ATL/unresolved byline switches, scalar facet totals, unchanged styles/element IDs, and resolved placeholders passed. No browser or visual verification was used. The final reader will be rebuilt after fetching ends.

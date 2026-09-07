@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Recover NFL articles with capture evidence and deterministic metadata."""
 import copy, csv, hashlib, io, json, os, random, re, sys, time, unicodedata
+from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -121,6 +122,59 @@ def find_meta(soup):
                 date_selector=date_selector, byline_selector=byline_selector)
 
 
+def byline_fields(a, raw):
+    sources = [a.get("discovered_via", "")] + [m.get("discovered_via", "") for m in a.get("merged_records", [])]
+    source = a.get("byline_source") or ("author-page" if any("sessler" in s and ("/author/" in s or "/writer/" in s) for s in sources) else "section-page")
+    verdict = "sessler" if re.search(r"\b(?:marc\s+)?sessler\b", raw, re.I) else "other" if raw else "unparsed"
+    atl = any(re.search(r"/(?:news|blogs)/around-the-(?:league|nfl)(?:[/_]|$)", s) for s in sources)
+    scope = "sessler" if verdict == "sessler" else "atl-blog" if raw and (atl or raw.lower() == "around the nfl staff") else "unresolved"
+    return dict(byline_raw=raw, byline_verdict=verdict, byline_status="other:" + raw if verdict == "other" else verdict,
+                byline_source=source, scope=scope)
+
+
+def record_byline(a, meta, raw_file, retrieved_url, phase="byline"):
+    # A body failure cannot erase a readable byline from another saved response.
+    raw = meta["byline"] if meta["byline_status"] != "unparsed" else ""
+    previous = a.get("byline_raw", "")
+    if raw or not previous:
+        a.update(byline_fields(a, raw))
+        a["byline_evidence"] = dict(raw_file=raw_file, retrieved_url=retrieved_url, selector=meta["byline_selector"])
+    a.setdefault("fetch_history", []).append(dict(at=now(), phase=phase, raw_file=raw_file,
+        retrieved_url=retrieved_url, byline_raw=raw, byline_verdict=byline_fields(a, raw)["byline_verdict"], selector=meta["byline_selector"]))
+
+
+def archive_stats(data):
+    eligible = [a for a in data["articles"] if a.get("kind") not in ("index", "nav", "pagination")]
+    recovered = [a for a in eligible if a.get("status") == "ok"]
+    def split(entries):
+        groups = {}
+        for a in entries:
+            g = groups.setdefault(a.get("byline_source", "missing"), {"sessler": 0, "other": 0, "unread": 0, "names": {}, "joint_bylines": {}})
+            v = a.get("byline_verdict", "unparsed")
+            g["unread" if v == "unparsed" else v] += 1
+            raw = a.get("byline_raw", "")
+            names = set(n.strip() for n in re.split(r",\s*|\s+and\s+|\s*&\s*", raw) if n.strip())
+            for n in names:
+                g["names"][n] = g["names"].get(n, 0) + 1
+            if len(names) > 1:
+                g["joint_bylines"][raw] = g["joint_bylines"].get(raw, 0) + 1
+        return groups
+    failures, fixed = Counter(), Counter()
+    for a in eligible:
+        if a.get("status", "").startswith("failed:"):
+            failures[a["status"]] += 1
+        if a.get("status") == "ok":
+            fixed.update({h["outcome"] for h in a.get("fetch_history", []) if h.get("outcome", "").startswith("failed:")})
+    attempted = [a for a in eligible if a.get("status") != "pending"]
+    sections = [a for a in attempted if a.get("byline_source") == "section-page"]
+    rate = round(100 * sum(a.get("byline_verdict") == "sessler" for a in sections) / len(sections), 1) if sections else None
+    return dict(at=now(), articles=len(recovered), byline_source=split(recovered),
+                attempted_byline_source=split(attempted), scope=dict(Counter(a.get("scope", "unresolved") for a in recovered)),
+                attempted_scope=dict(Counter(a.get("scope", "unresolved") for a in attempted)),
+                failures=dict(failures), fixed_failure_patterns=dict(fixed), section_sessler_percent=rate,
+                coverage_note="Section-page Sessler rate differs from the 16% probe by at least 8 percentage points; uneven month/ID coverage may explain the drift." if rate is not None and abs(rate-16) >= 8 else "")
+
+
 # Closed team vocabulary, including names used during 2012–2024.
 TEAM_ALIASES = {
  "Arizona Cardinals": ["Cardinals", "Arizona Cardinals"],
@@ -218,15 +272,17 @@ def load_players(data, save):
 def write_recovery(a, recovered, players, slug, path, retrieved_at=None):
     body_url = a.get("body_url") or a["url"]
     meta, body, selector, r, source_type, ts, src = recovered
-    sources = [a.get("discovered_via", "")] + [m.get("discovered_via", "") for m in a.get("merged_records", [])]
-    byline_source = "author-page" if any("sessler" in s and ("/author/" in s or "/writer/" in s) for s in sources) else "section-page"
+    fields = byline_fields(a, a.get("byline_raw") or meta["byline"])
+    meta.update(fields, byline=fields["byline_raw"])
+    a.update(fields)
+    byline_source = fields["byline_source"]
     content_id = a.get("content_id") or (re.search(r"-(0ap[0-9]+|09000[a-f0-9]+)$", body_url).group(1) if re.search(r"-(0ap[0-9]+|09000[a-f0-9]+)$", body_url) else "")
     date_sel, by_sel = meta.pop("date_selector"), meta.pop("byline_selector")
     meta["title"] = meta["title"] or a.get("title") or slug
     meta.update(content_id=content_id, byline_source=byline_source, slug=slug, word_count=len(body.split()))
     meta.update(enrich(meta["title"], body, players))
     actual_ts = re.search(r"/web/(\d{14})", r.url)
-    prov = {"original_url": body_url, "comments_url": a.get("comments_url", ""),
+    prov = {"original_url": body_url,
             "requested_from": src, "retrieved_from": r.url, "source_type": source_type,
             "wayback_timestamp": actual_ts[1] if actual_ts else ts, "http_status": r.status_code,
             "body_selector": selector, "date_selector": date_sel, "byline_selector": by_sel,
@@ -240,14 +296,52 @@ def write_recovery(a, recovered, players, slug, path, retrieved_at=None):
 
 def main():
     repair = "--repair" in sys.argv
+    bylines_only = "--reparse-bylines" in sys.argv
     section_sample = "--section-sample" in sys.argv
-    limit = int(sys.argv[2]) if section_sample else (int(sys.argv[1]) if len(sys.argv) > 1 and not repair else 0)
+    limit = int(sys.argv[2]) if section_sample else (int(sys.argv[1]) if len(sys.argv) > 1 and not repair and not bylines_only else 0)
     data = json.load(open(INDEX))
     Path(OUTDIR, "_raw").mkdir(parents=True, exist_ok=True)
     def save():
         with open(INDEX + ".tmp", "w") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         os.replace(INDEX + ".tmp", INDEX)
+    if bylines_only:
+        gained = []
+        scanned = 0
+        for a in data["articles"]:
+            if a.get("kind") in ("index", "nav", "pagination"):
+                continue
+            before = a.get("byline_verdict") or ("other" if a.get("byline_status", "").startswith("other:") else a.get("byline_status", "unparsed"))
+            seen = set()
+            for h in a.get("fetch_history", [])[:]:
+                raw_file = h.get("raw_file", "")
+                if not raw_file or raw_file in seen or not Path(raw_file).is_file():
+                    continue
+                seen.add(raw_file)
+                meta = find_meta(BeautifulSoup(Path(raw_file).read_text(), "html.parser"))
+                record_byline(a, meta, raw_file, h.get("retrieved_url", h.get("url", "")), "cached-byline")
+                scanned += 1
+            if not seen:
+                a.update(byline_fields(a, a.get("byline_raw", "")))
+            if before in ("unparsed", "unread") and a["byline_verdict"] != "unparsed":
+                gained.append({"url": a["url"], "byline_raw": a["byline_raw"], "body_status": a.get("status")})
+            a.pop("comments", None)
+            path = Path(OUTDIR, (a.get("slug") or slugify(a["url"])) + ".md")
+            if path.exists():
+                text = path.read_text()
+                head, body = text.split("\n---\n", 1)
+                head = re.sub(r"(?m)^comments:.*(?:\n[ \t]+.*)*\n?", "", head)
+                head = re.sub(r"(?m)^  comments_url:.*\n?", "", head)
+                for k, v in dict(byline_fields(a, a["byline_raw"]), byline=a["byline_raw"]).items():
+                    line = k + ": " + json.dumps(v, ensure_ascii=False)
+                    pattern = r"(?m)^" + k + r":.*$"
+                    head = re.sub(pattern, lambda m: line, head) if re.search(pattern, head) else head + "\n" + line
+                path.write_text(head + "\n---\n" + body)
+        audit = {"at": now(), "cached_pages": scanned, "previously_unread_gained_name": len(gained), "gained": gained}
+        data.setdefault("byline_reparse_runs", []).append(audit)
+        save()
+        print(json.dumps(audit), flush=True)
+        return
     players = load_players(data, save)
     if repair:
         repaired = 0
@@ -264,6 +358,8 @@ def main():
                 if old.get("phase") != "extraction" or not Path(old.get("raw_file", "")).is_file():
                     continue
                 soup = BeautifulSoup(Path(old["raw_file"]).read_text(), "html.parser")
+                record_byline(a, find_meta(soup), old["raw_file"], old.get("retrieved_url", old["url"]), "cached-byline")
+                save()
                 el, selector = pick_body(soup)
                 body = to_markdown(el) if el else ""
                 if len(body) < 300 or (previous_body and (selector != ".story-part-rich-text-editor-wrapper (all blocks)" or len(body) <= len(previous_body))):
@@ -331,8 +427,10 @@ def main():
             break
         attempted += 1
         history = a.setdefault("fetch_history", [])
-        if str(a.get("status", "")).startswith("failed:") and not history:
+        if str(a.get("status", "")).startswith("failed:"):
             history.append({"at": now(), "phase": "previous-status", "outcome": a["status"]})
+        history.append({"at": now(), "phase": "attempt-start", "previous_status": a.get("status", "pending")})
+        save()
         legacy = "/news/story/" in body_url
         candidates = [] if legacy else [(body_url, "live:nfl.com", "")]
         # Discover archived routes lazily after live fails, earliest capture first.
@@ -369,6 +467,8 @@ def main():
                 raw.write_text(r.text, encoding="utf-8")
                 soup = BeautifulSoup(r.text, "html.parser")
                 meta = find_meta(soup)
+                record_byline(a, meta, str(raw), r.url)
+                save()
                 el, selector = pick_body(soup)
                 body = to_markdown(el) if el else ""
                 result = {"at": now(), "phase": "extraction", "url": src, "retrieved_url": r.url,
@@ -398,33 +498,7 @@ def main():
             total = len(archived)
             checkpoints = data.setdefault("byline_checkpoints", [])
             if total % 200 == 0 and not any(c["articles"] == total for c in checkpoints):
-                sessler = sum(entry.get("byline_status") == "sessler" for entry in archived)
-                other = sum(str(entry.get("byline_status", "")).startswith("other:") for entry in archived)
-                checkpoint = {"at": now(), "articles": total, "sessler": sessler,
-                              "other": other, "unparsed": total - sessler - other,
-                              "other_percent": round(100 * other / total, 1)}
-                sources = {source: {"sessler": 0, "other": 0, "unread": 0,
-                                    "other_names": {}, "other_bylines": {}}
-                           for source in ("author-page", "section-page")}
-                for entry in archived:
-                    source = entry.get("byline_source") or "missing"
-                    group = sources.setdefault(source, {"sessler": 0, "other": 0,
-                        "unread": 0, "other_names": {}, "other_bylines": {}})
-                    byline = entry.get("byline_status") or "unparsed"
-                    bucket = "sessler" if byline == "sessler" else "other" if byline.startswith("other:") else "unread"
-                    group[bucket] += 1
-                    if bucket == "other":
-                        credit = byline[6:]
-                        group["other_bylines"][credit] = group["other_bylines"].get(credit, 0) + 1
-                        # Joint pieces count once per credited name, once in the article split.
-                        for name in set(re.split(r",\s*|\s+and\s+|\s*&\s*", credit)):
-                            name = name.strip()
-                            if not name:
-                                continue
-                            record = group["other_names"].setdefault(name, {"count": 0,
-                                "scope": "ATL crew" if name in ("Dan Hanzus", "Gregg Rosenthal", "Chris Wesseling") else "other NFL.com staff"})
-                            record["count"] += 1
-                checkpoint["byline_source"] = sources
+                checkpoint = archive_stats(data)
                 checkpoints.append(checkpoint)
                 print("BYLINE CHECKPOINT " + json.dumps(checkpoint), flush=True)
         save()

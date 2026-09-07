@@ -166,13 +166,13 @@ button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:p
 <script>
 const DATA=__DATA__;
 const CONC=__CONCORDANCE__;
-const AXES=["year","series","format","team","player","byline"];
+const AXES=["year","series","format","team","player","byline","scope"];
 
-let q="",facet={},cur=-1,open=null,rows=[];
+let q="",facet={scope:"sessler"},cur=-1,open=null,rows=[];
 const el=i=>document.getElementById(i);
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const bylabel=a=>a.by==="sessler"?"Confirmed Sessler":a.by==="unparsed"?"Byline unread":"Another writer";
-const vals=(a,k)=>k==="year"?[String(a.y)]:k==="series"?(a.series?[a.series]:[]):k==="format"?[a.fmt]:k==="team"?a.teams:k==="player"?a.players:[bylabel(a)];
+const bylabel=a=>a.scope==="sessler"?"Sessler":a.scope==="atl-blog"?"ATL blog":"Byline unread";
+const vals=(a,k)=>k==="year"?[String(a.y)]:k==="series"?(a.series?[a.series]:[]):k==="format"?[a.fmt]:k==="team"?a.teams:k==="player"?a.players:k==="scope"?[a.scope]:[bylabel(a)];
 
 function buildFacets(){
   el("index").innerHTML=AXES.map(k=>{
@@ -182,7 +182,7 @@ function buildFacets(){
       .map(([v,c])=>`<button data-k="${k}" data-v="${esc(v)}" aria-pressed="${facet[k]===v}"><span>${esc(v)}</span><span class="c">${c}</span></button>`).join("")+`</section>`;
   }).join("");
   el("index").querySelectorAll("button").forEach(b=>b.onclick=()=>{
-    const{k,v}=b.dataset; facet[k]=facet[k]===v?undefined:v; cur=-1; open=null; history.replaceState(null,"",location.pathname+location.search); sync();
+    const{k,v}=b.dataset; facet[k]=facet[k]===v?undefined:v; if(k==="byline")facet.scope=undefined; if(k==="scope")facet.byline=undefined; cur=-1; open=null; history.replaceState(null,"",location.pathname+location.search); sync();
   });
 }
 
@@ -204,7 +204,7 @@ function list(){
   rows=DATA.filter(match);
   el("tally").textContent=rows.length===DATA.length?`${rows.length} pieces`:`${rows.length} of ${DATA.length} pieces`;
   el("list").innerHTML=open?"":(rows.length?rows.map((a,i)=>{
-    const flag=a.by==="sessler"?"":` <span class="flag">${a.by==="unparsed"?"byline unread":"filed by "+esc(a.by.slice(6))}</span>`;
+    const flag=` <span class="flag">${a.verdict==="unparsed"?"byline unread":"filed by "+esc(a.byline_raw)}</span>`;
     return `<button class="entry ${i===cur?"cur":""}" data-id="${a.id}">
       <span class="meta">${esc(a.date||"undated")} &nbsp; ${a.wc} words &nbsp; ${a.src==="wayback"?"wayback "+a.wb.slice(0,8):"live"}${flag}</span>
       <span class="ttl">${esc(a.t)}</span>
@@ -219,7 +219,7 @@ function piece(){
   el("piece").innerHTML=a?`<article class="piece">
       <a class="back" href="#">← All pieces</a>
       <h3>${esc(a.t)}</h3>${a.d?`<p class="dek">${esc(a.d)}</p>`:""}
-      <p class="byline">${esc(a.date||"undated")} &nbsp;·&nbsp; ${a.by==="sessler"?"Marc Sessler":a.by==="unparsed"?"byline not yet read":esc(a.by.slice(6))} &nbsp;·&nbsp; ${a.wc} words</p>
+      <p class="byline">${esc(a.date||"undated")} &nbsp;·&nbsp; ${a.verdict==="unparsed"?"byline unread":esc(a.byline_raw)} &nbsp;·&nbsp; ${a.wc} words</p>
       <div class="body">${a.h}</div>
       <nav class="actions" aria-label="Read this piece"><h4>Read this piece</h4>
         ${a.links.map((link,i)=>`<a class="ghost ${i===0?'primary':''}" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer">${esc(link.label)}</a>`).join("")}

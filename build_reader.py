@@ -121,6 +121,7 @@ def main():
         p = m["provenance"]
         arts.append(dict(id=m["slug"], t=m.get("title", ""), d=m.get("dek", ""),
                          date=date, y=date[:4] if date else "undated", by=m.get("byline_status", "unparsed"),
+                         byline_raw=m.get("byline_raw", ""), verdict=m.get("byline_verdict", "unparsed"), scope=m.get("scope", "unresolved"),
                          series=m.get("series", ""), fmt=m.get("format", "news brief"),
                          teams=m.get("entities", {}).get("teams", []), players=m.get("entities", {}).get("players", []),
                          wc=int(m.get("word_count") or 0), url=p.get("original_url", ""), cap=p.get("discovery_capture", ""),
