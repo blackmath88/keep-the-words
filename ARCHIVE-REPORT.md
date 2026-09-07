@@ -33,3 +33,32 @@ Player matching uses downloaded [nflverse season rosters](https://github.com/nfl
 146 recovered articles: 132 Sessler, 12 other writers, 2 unread bylines. Fetching paused pending author-scope clarification. The reader template was located and integrated. `reader/archive.html` embeds all 146 articles exactly once. JavaScript syntax, template styles and element IDs, and placeholder checks pass. Forty links across five articles are well-formed absolute HTTP(S) URLs. Visuals were not verified.
 
 Cumulative byline checkpoints print and persist every 200 recovered articles, including after restarts.
+
+## Random section-page sample — 2026-09-07
+
+Analysis: GPT-6 (Codex), 2026-09-07. Fetching stopped after exactly 100 attempts.
+
+Population: 1,355 unrecovered article entries with exact `byline_source == section-page` and a legacy content ID. Sorted within legacy ID families (090 before 0ap), divided into 10 near-equal population bands, and selected 10 at random per band with seed `20260907`; fetch order shuffled. The selected IDs and band boundaries are recorded in the latest `index.json.fetch_runs` entry. No replacement draws. This sample excludes the 13 previously recovered section-page articles.
+
+| Source | Sessler | Other | Unread | Total |
+|---|---:|---:|---:|---:|
+| section-page | 16 | 81 | 3 | 100 |
+
+| Byline in other bucket | Count | Scope |
+|---|---:|---|
+| Chris Wesseling | 16 | ATL crew |
+| Dan Hanzus | 7 | ATL crew |
+| Gregg Rosenthal | 5 | ATL crew |
+| Kevin Patra | 28 | Other NFL.com staff |
+| Herbie Teope | 6 | Other NFL.com staff |
+| Jeremy Bergman | 5 | Other NFL.com staff |
+| Nick Shook | 4 | Other NFL.com staff |
+| Austin Knoblauch | 2 | Other NFL.com staff |
+| Conor Orr | 2 | Other NFL.com staff |
+| Edward Lewis | 2 | Other NFL.com staff |
+| Mike Coppinger | 1 | Other NFL.com staff |
+| Around The NFL staff | 3 | Generic ATN staff; individual authors unresolved |
+
+Scope totals within other: 28 named ATL crew, 50 other named NFL.com staff, 3 generic Around The NFL staff. No joint named bylines in this sample.
+
+98 bodies recovered; 2 failed body extraction but retained readable meta bylines (Kevin Patra and Chris Wesseling). Those two count as other. The 3 unread bylines are on recovered articles. No further fetch pass was started.
