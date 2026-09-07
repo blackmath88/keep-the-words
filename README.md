@@ -10,7 +10,7 @@ Don't republish it.
 ## Setup
 
     python3 -m venv .venv && source .venv/bin/activate
-    pip install requests beautifulsoup4
+    pip install -r requirements.txt
 
 ## Run
 
@@ -50,7 +50,16 @@ footer on each piece linking back to the original and the archived source.
 
 ## Tuning
 
-- `SLEEP` in both scripts (1.0s / 1.5s) — be polite, don't lower it.
+- `SLEEP` in both scripts (5.0s replay / 1.5s body fetch) — be polite, don't lower it.
+- Harvest replay requests get four attempts with 5/10/20-second backoff
+  and a 40-second cooldown after the fourth transient failure. Failed
+  captures get one final retry pass. CDX calls have no replay delay.
+- `index.json` retains capture outcomes and attempt history, including
+  failures after recovery. Re-runs skip parsed captures; writes are atomic.
+- Legacy story identities use the content ID, retaining `body_url`,
+  `comments_url`, and observed URLs. Modern URLs retain URL identity.
+- Candidates have `kind`: article, index, nav, or unknown. The body fetcher
+  skips index and nav entries without deleting them.
 - `collapse="timestamp:6"` in harvest = one capture per month. Change to
   `timestamp:8` for daily captures: far more coverage, far slower.
 - `AUTHOR_HINT` in fetch_bodies if you want stricter byline matching.

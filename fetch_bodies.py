@@ -128,6 +128,8 @@ def main():
     done = skipped = failed = 0
 
     for i, a in enumerate(data["articles"], 1):
+        if a.get("kind", "unknown") not in ("article", "unknown"):
+            continue
         slug = slugify(a["url"])
         path = os.path.join(OUTDIR, slug + ".md")
         if os.path.exists(path):
