@@ -72,3 +72,79 @@ The cache audit scanned 253 saved pages and found 0 additional previously-unread
 Comment content is absent from the active article schema and reader. The legacy comments_url remains solely as the explicitly retained article-recovery fallback. The negative widget probe above remains evidence.
 
 A temporary reader build structurally verified 274 recovered articles while fetching continued: JavaScript syntax, unique IDs, default Sessler scope, one-click ATL/unresolved byline switches, scalar facet totals, unchanged styles/element IDs, and resolved placeholders passed. No browser or visual verification was used. The final reader will be rebuilt after fetching ends.
+
+## Paused handoff — 2026-09-07 16:31 UTC
+
+Analysis: GPT-6 (Codex), 2026-09-07. User requested a break. Fetch process exited with SIGINT; the run interruption is persisted. No fetch process remains active.
+
+This full-pass segment completed 201 attempts: 199 new recoveries and 2 failures. Cumulative: 443 recovered, 4 unresolved body failures, 1,463 pending eligible entries. No articles were deleted.
+
+| Recovered byline_source | Sessler | Other | Unread |
+|---|---:|---:|---:|
+| author-page | 172 | 0 | 1 |
+| section-page | 47 | 217 | 6 |
+
+Recovered scope: 219 sessler / 217 atl-blog / 7 unresolved. Across all 447 completed article outcomes, including body failures: 219 sessler / 220 atl-blog / 8 unresolved. Three failed bodies have readable non-Sessler bylines. Section-page Sessler rate is 17.2% of completed outcomes, close to the 16% probe.
+
+Cached byline audit: 253 saved pages reparsed, 0 additional unread records gained a name. The two probe failures were already corrected before this request.
+
+| Writer / generic credit in recovered articles | Article credits |
+|---|---:|
+| Marc Sessler | 219 |
+| Gregg Rosenthal | 63 |
+| Dan Hanzus | 57 |
+| Kevin Patra | 31 |
+| Brian McIntyre | 19 |
+| Chris Wesseling | 16 |
+| Herbie Teope | 6 |
+| Jeremy Bergman | 5 |
+| Nick Shook | 5 |
+| Simon Samano | 4 |
+| Austin Knoblauch | 4 |
+| Around The NFL staff | 3 |
+| Conor Orr | 2 |
+| Edward Lewis | 2 |
+| Mike Coppinger | 1 |
+| Max Meyer | 1 |
+| Andie Hagemann | 1 |
+
+Joint pieces count once for each credited writer. Joint bylines: Gregg Rosenthal and Marc Sessler (1); Gregg Rosenthal, Chris Wesseling and Kevin Patra (1). Generic Around The NFL staff is not an individual writer.
+
+| Extracted publication year | Recovered |
+|---|---:|
+| 2010 | 1 |
+| 2012 | 162 |
+| 2013 | 4 |
+| 2014 | 27 |
+| 2015 | 13 |
+| 2016 | 10 |
+| 2017 | 15 |
+| 2018 | 43 |
+| 2019 | 52 |
+| 2020 | 47 |
+| 2021 | 27 |
+| 2022 | 28 |
+| 2023 | 13 |
+| 2024 | 1 |
+
+All 443 recovered articles have parsed publication dates. The full pass is incomplete: the year counts above are a checkpoint, not evidence of exhaustive 2014–2018 coverage.
+
+| Body failure pattern | Previously failed, now recovered | Currently unresolved |
+|---|---:|---:|
+| failed:thin-body | 7 | 3 |
+| failed:no-capture | 0 | 1 |
+
+Counts are per article per pattern, not HTTP retry events; transient network retries remain in fetch_history. A comments-view failure (09000d5d82a5733c) has Gregg Rosenthal metadata but no captured article body. It remains atl-blog with failed:thin-body.
+
+Reader rebuilt at reader/archive.html with 443 unique articles. Structural checks passed: JavaScript syntax; unchanged template styles and element IDs; no unresolved placeholders; every Markdown article embedded once; scalar facets reconcile; sampled links from 10 articles are absolute HTTP(S) URLs. Earlier behavioral checks verified default Sessler scope and one-click ATL/unread access. No visual verification.
+
+Resume from repository root:
+
+```sh
+.venv/bin/python fetch_bodies.py
+.venv/bin/python build_reader.py
+```
+
+Run those sequentially, never concurrently: both write index.json. The fetcher skips existing Markdown and records previous failures before retrying. Keep articles/ intact. Use --repair only for cached body-selector repairs and --reparse-bylines for cached metadata audits. Next full checkpoint: 600 recovered.
+
+Remaining: finish fetching; inspect/fix recoverable failure patterns from cache as warranted; rebuild and structurally verify the final reader; produce the final source/scope/masthead/year/failure report. Current scope and comments decisions are already implemented.
