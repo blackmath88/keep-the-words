@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Recover NFL articles with capture evidence and deterministic metadata."""
-import copy, csv, hashlib, io, json, os, re, sys, time, unicodedata
+import copy, csv, hashlib, io, json, os, random, re, sys, time, unicodedata
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -240,7 +240,8 @@ def write_recovery(a, recovered, players, slug, path, retrieved_at=None):
 
 def main():
     repair = "--repair" in sys.argv
-    limit = int(sys.argv[1]) if len(sys.argv) > 1 and not repair else 0
+    section_sample = "--section-sample" in sys.argv
+    limit = int(sys.argv[2]) if section_sample else (int(sys.argv[1]) if len(sys.argv) > 1 and not repair else 0)
     data = json.load(open(INDEX))
     Path(OUTDIR, "_raw").mkdir(parents=True, exist_ok=True)
     def save():
@@ -289,7 +290,27 @@ def main():
     pending = [a for a in data["articles"] if a.get("kind") not in ("index", "nav", "pagination")
                and not Path(OUTDIR, (a.get("slug") or slugify(a["url"])) + ".md").exists()]
     entries = data["articles"]
-    if limit:
+    if section_sample:
+        pool = [a for a in pending if a.get("byline_source") == "section-page" and a.get("content_id")]
+        pool.sort(key=lambda a: (0 if a["content_id"].startswith("090") else 1, a["content_id"]))
+        if limit != 100 or len(pool) < limit:
+            raise ValueError("Section sample requires 100 entries and at least 100 eligible records")
+        seed = 20260907
+        rng = random.Random(seed)
+        entries = []
+        strata = []
+        for i in range(10):
+            band = pool[i*len(pool)//10:(i+1)*len(pool)//10]
+            selected = rng.sample(band, 10)
+            entries.extend(selected)
+            strata.append({"population": len(band), "first_id": band[0]["content_id"], "last_id": band[-1]["content_id"]})
+        rng.shuffle(entries)
+        run["sample"] = {"method": "10 random entries per legacy ID population decile; shuffled fetch order",
+                         "seed": seed, "population": len(pool), "byline_source": "section-page",
+                         "excludes": "already recovered articles", "strata": strata,
+                         "selected": [{"url": a["url"], "content_id": a["content_id"]} for a in entries]}
+        save()
+    elif limit:
         legacy = [a for a in pending if "/news/story/" in a.get("body_url", a["url"])]
         modern = [a for a in pending if a not in legacy]
         entries = []
@@ -382,6 +403,28 @@ def main():
                 checkpoint = {"at": now(), "articles": total, "sessler": sessler,
                               "other": other, "unparsed": total - sessler - other,
                               "other_percent": round(100 * other / total, 1)}
+                sources = {source: {"sessler": 0, "other": 0, "unread": 0,
+                                    "other_names": {}, "other_bylines": {}}
+                           for source in ("author-page", "section-page")}
+                for entry in archived:
+                    source = entry.get("byline_source") or "missing"
+                    group = sources.setdefault(source, {"sessler": 0, "other": 0,
+                        "unread": 0, "other_names": {}, "other_bylines": {}})
+                    byline = entry.get("byline_status") or "unparsed"
+                    bucket = "sessler" if byline == "sessler" else "other" if byline.startswith("other:") else "unread"
+                    group[bucket] += 1
+                    if bucket == "other":
+                        credit = byline[6:]
+                        group["other_bylines"][credit] = group["other_bylines"].get(credit, 0) + 1
+                        # Joint pieces count once per credited name, once in the article split.
+                        for name in set(re.split(r",\s*|\s+and\s+|\s*&\s*", credit)):
+                            name = name.strip()
+                            if not name:
+                                continue
+                            record = group["other_names"].setdefault(name, {"count": 0,
+                                "scope": "ATL crew" if name in ("Dan Hanzus", "Gregg Rosenthal", "Chris Wesseling") else "other NFL.com staff"})
+                            record["count"] += 1
+                checkpoint["byline_source"] = sources
                 checkpoints.append(checkpoint)
                 print("BYLINE CHECKPOINT " + json.dumps(checkpoint), flush=True)
         save()
