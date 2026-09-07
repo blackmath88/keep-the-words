@@ -3,7 +3,7 @@
 build_reader.py — Step 3 of the Sessler archive pipeline.
 
 Reads articles/*.md, embeds everything into one self-contained HTML file.
-No server needed — double-click sessler-archive.html.
+No server needed — double-click reader/archive.html.
 """
 
 import json, os, re, glob, html, time
@@ -11,7 +11,7 @@ from datetime import datetime
 from urllib.parse import urlencode, quote
 
 INDIR = "articles"
-OUT = "sessler-archive.html"
+OUT = "reader/archive.html"
 
 
 def parse_md(path):
@@ -142,6 +142,7 @@ def main():
     doc = template.replace("__DATA__", json.dumps(arts, ensure_ascii=False).replace("<", "\\u003c"))
     doc = doc.replace("__CONCORDANCE__", json.dumps(concordance)).replace("__MANIFEST__", manifest)
     doc = doc.replace("__BUILT__", time.strftime("%Y-%m-%d"))
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     open(OUT, "w", encoding="utf-8").write(doc)
     # Keep date gaps as structured evidence; do not manufacture a year-only date.
     if os.path.exists("index.json"):

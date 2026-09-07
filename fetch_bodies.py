@@ -371,6 +371,19 @@ def main():
             write_recovery(a, recovered, players, slug, path)
             done += 1
         run["articles"].append({"url": body_url, "outcome": a["status"]})
+        # Cumulative recovered-article checkpoints survive restarts.
+        if recovered:
+            archived = [entry for entry in data["articles"] if entry.get("status") == "ok"]
+            total = len(archived)
+            checkpoints = data.setdefault("byline_checkpoints", [])
+            if total % 200 == 0 and not any(c["articles"] == total for c in checkpoints):
+                sessler = sum(entry.get("byline_status") == "sessler" for entry in archived)
+                other = sum(str(entry.get("byline_status", "")).startswith("other:") for entry in archived)
+                checkpoint = {"at": now(), "articles": total, "sessler": sessler,
+                              "other": other, "unparsed": total - sessler - other,
+                              "other_percent": round(100 * other / total, 1)}
+                checkpoints.append(checkpoint)
+                print("BYLINE CHECKPOINT " + json.dumps(checkpoint), flush=True)
         save()
         print(f"[{attempted}] {a['status']} {body_url}", flush=True)
         time.sleep(SLEEP)

@@ -63,6 +63,8 @@ def kind(u):
         return "nav"
     if path in ("/news", "/news/story", "/blogs/around-the-league", "/news/around-the-league"):
         return "index"
+    if re.fullmatch(r"/news/around-the-league_\d+/\d+", path):
+        return "pagination"
     if re.fullmatch(r"/(?:news|blogs)/around-the-league/\d+", path):
         return "index"
     if re.fullmatch(r"(?:\d{1,4}[-/]){2}\d{1,4}", "/".join(parts[2:])):

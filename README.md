@@ -26,7 +26,7 @@ HTML to repair thin bodies and expand partial modern extractions; previous
 successful versions are retained as `.md.before-repair` files.
 
 `reader-prototype.html` is the reader's source template. The generated
-`sessler-archive.html`, index, raw responses, rosters, and Markdown stay local.
+`reader/archive.html`, index, raw responses, rosters, and Markdown stay local.
 The source template is the sole exception to the HTML ignore rule.
 
 ## Harvest and frontier

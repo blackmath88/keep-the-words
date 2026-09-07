@@ -28,6 +28,8 @@ Capture years are not publication years. The body stage must establish whether t
 
 Player matching uses downloaded [nflverse season rosters](https://github.com/nflverse/nflverse-rosters) for 2012–2024: 13 CSV files and 10,193 normalized aliases. Teams use a closed 32-team dictionary with historical names and nicknames. Series and format use fixed regex rules. No model calls are involved in enrichment. String matching and format heuristics can miss aliases or match ambiguous words; they are not semantic entity recognition.
 
-## Pending
+## Structural checkpoint
 
-The body-fetch batch is running. Reader integration requires `reader-prototype.html`, which is absent from the repository and searched attachment directories.
+146 recovered articles: 132 Sessler, 12 other writers, 2 unread bylines. Fetching paused pending author-scope clarification. The reader template was located and integrated. `reader/archive.html` embeds all 146 articles exactly once. JavaScript syntax, template styles and element IDs, and placeholder checks pass. Forty links across five articles are well-formed absolute HTTP(S) URLs. Visuals were not verified.
+
+Cumulative byline checkpoints print and persist every 200 recovered articles, including after restarts.
