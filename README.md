@@ -28,7 +28,12 @@ successful versions are retained as `.md.before-repair` files.
 
 `reader-prototype.html` is the reader's source template. The generated
 `reader/archive.html`, index, raw responses, rosters, and Markdown stay local.
-The source template is the sole exception to the HTML ignore rule.
+The reader source template and `fetch-status.html` are tracked HTML files.
+
+Open `fetch-status.html` with Live Server from the repository root to watch
+saved fetch progress. It refreshes `index.json` every five seconds and shows
+totals, recent results, failures, and the recovered byline split. Activity
+is inferred from saved timestamps; the page cannot inspect the Python process.
 
 ## Harvest and frontier
 

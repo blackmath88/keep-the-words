@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Archive fetch status</title>
+<style>
+  :root { color-scheme: dark; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #0b1016; color: #cbd5e1; }
+  * { box-sizing: border-box; }
+  body { max-width: 1100px; margin: 2rem auto; padding: 0 1.2rem 3rem; }
+  h1 { font-size: 1.4rem; margin-bottom: .25rem; color: #edf5ff; }
+  h1::before { content: '> '; color: #61e4b0; }
+  p { margin: .5rem 0; }
+  .muted { color: #8b9bb0; font-size: .9rem; }
+  .cards { display: flex; flex-wrap: wrap; gap: .7rem; margin: 1.5rem 0; }
+  .card { flex: 1; min-width: 130px; padding: 1rem; background: #111a24; border: 1px solid #263445; border-radius: 5px; text-transform: uppercase; letter-spacing: .08em; }
+  #recovered { color: #61e4b0; } #pending { color: #7bc8ff; } #failed { color: #ff939b; }
+  strong { display: block; font-size: 2rem; font-variant-numeric: tabular-nums; }
+  progress { width: 100%; height: 8px; accent-color: #61e4b0; }
+  h2 { font-size: 1rem; margin: 1.5rem 0 .5rem; color: #a9b9cf; }
+  h2::before { content: '# '; color: #637a96; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .5rem; border-bottom: 1px solid #8884; }
+  li { margin: .5rem 0; overflow-wrap: anywhere; }
+  a { color: #7bc8ff; text-underline-offset: 3px; }
+  #activity { overflow-wrap: anywhere; }
+  #error { color: #ff939b; }
+  #state { color: #61e4b0; }
+  .terminal { margin-top: 1.5rem; border: 1px solid #304057; border-radius: 7px; overflow: hidden; background: #080d13; }
+  .terminal-head { display: flex; align-items: center; flex-wrap: wrap; gap: .7rem; background: #17212e; padding: .65rem 1rem; }
+  .terminal-head h2 { margin: 0; color: #d6e4f5; flex: 1; }
+  button { font: inherit; color: #a9c9e8; background: #101925; border: 1px solid #3a5069; border-radius: 4px; padding: .25rem .6rem; cursor: pointer; }
+  button:focus-visible, #terminal-log:focus-visible { outline: 2px solid #7bc8ff; outline-offset: -2px; }
+  #terminal-log { height: 390px; overflow: auto; padding: 1rem; scrollbar-color: #394f68 #080d13; }
+  .log-line { display: grid; grid-template-columns: 6em 9em minmax(0,1fr); gap: .7rem; margin-bottom: .45rem; }
+  .log-time { color: #778ca7; } .log-phase { color: #b9a1ff; }
+  .log-message { overflow-wrap: anywhere; white-space: pre-wrap; }
+  .log-line.good .log-message { color: #61e4b0; }
+  .log-line.bad .log-message { color: #ff939b; }
+  .log-line.start .log-message { color: #7bc8ff; }
+  .terminal-foot { border-top: 1px solid #233044; padding: .6rem 1rem; color: #8b9bb0; }
+  @media (max-width: 600px) { .log-line { grid-template-columns: 5.5em minmax(0,1fr); } .log-message { grid-column: 1 / -1; } body { margin-top: 1rem; } }
+</style>
+<h1>Archive fetch</h1>
+<p id="state" role="status">Loading saved progress…</p>
+<p class="muted">Refreshes every 5 seconds from index.json. Activity is based on saved events; this page cannot inspect the Python process.</p>
+<p id="error" role="alert"></p>
+<div class="cards">
+  <div class="card"><strong id="recovered">—</strong>recovered</div>
+  <div class="card"><strong id="pending">—</strong>pending</div>
+  <div class="card"><strong id="failed">—</strong>failed</div>
+</div>
+<progress id="progress" max="1" value="0" aria-label="Resolved entries, including failures"></progress>
+<p id="coverage" class="muted"></p>
+<section class="terminal" aria-label="Live fetch activity">
+  <div class="terminal-head"><h2>fetch_bodies.py / activity</h2><button id="follow" type="button" aria-pressed="true">Follow: on</button><button id="copy-log" type="button">Copy log</button></div>
+  <div id="terminal-log" role="region" aria-label="Saved fetch events, oldest first" tabindex="0"></div>
+  <div class="terminal-foot" id="terminal-note">Connecting to saved history…</div>
+</section>
+<h2>Latest saved activity</h2>
+<p id="activity">—</p>
+<p id="freshness" class="muted"></p>
+<h2>Latest fetch run</h2>
+<p id="run">—</p>
+<h2>Recovered byline split</h2>
+<table>
+  <thead><tr><th>Discovery source</th><th>Sessler</th><th>Other</th><th>Unread</th></tr></thead>
+  <tbody id="bylines"></tbody>
+</table>
+<h2>Current failures</h2>
+<p id="failures">—</p>
+<h2>Recent results <span class="muted">(newest first)</span></h2>
+<ol id="recent"></ol>
+<script>
+const el = id => document.getElementById(id);
+const fmt = n => n.toLocaleString();
+const date = value => value ? new Date(value).toLocaleString() : 'unknown';
+let following = true;
+let logSignature = '';
+let logText = '';
+el('follow').onclick = () => {
+  following = !following;
+  el('follow').textContent = `Follow: ${following ? 'on' : 'off'}`;
+  el('follow').setAttribute('aria-pressed', String(following));
+  if (following) el('terminal-log').scrollTop = el('terminal-log').scrollHeight;
+};
+el('copy-log').onclick = async () => {
+  try { await navigator.clipboard.writeText(logText); el('copy-log').textContent = 'Copied'; }
+  catch (_) { el('copy-log').textContent = 'Copy unavailable'; }
+  setTimeout(() => { el('copy-log').textContent = 'Copy log'; }, 2000);
+};
+function renderLog(entries, run) {
+  const events = [];
+  for (const article of entries) {
+    for (const event of article.fetch_history || []) {
+      if (event.at && run && event.at >= run.started_at) events.push({article, event});
+    }
+  }
+  events.sort((a, b) => a.event.at.localeCompare(b.event.at));
+  const tail = events.slice(-120);
+  const signature = JSON.stringify(tail.map(({article, event}) => [article.url, event]));
+  if (signature !== logSignature) {
+    logSignature = signature;
+    const panel = el('terminal-log');
+    const position = panel.scrollTop;
+    const lines = [];
+    panel.replaceChildren();
+    for (const {article, event} of tail) {
+      const time = new Date(event.at).toLocaleTimeString([], {hour12: false});
+      const details = [event.outcome, event.http_status != null ? `HTTP ${event.http_status}` : '',
+        event.attempt ? `attempt ${event.attempt}` : '', event.error_type,
+        event.count != null ? `${event.count} captures` : '',
+        event.body_chars != null ? `${fmt(event.body_chars)} chars` : '', event.byline_raw,
+        event.selector].filter(Boolean).join(' · ');
+      const message = `${article.title || article.url}${details ? ' — ' + details : ''}${event.error ? '\n  ' + event.error : ''}`;
+      const row = document.createElement('div');
+      row.className = 'log-line ' + (String(event.outcome).startsWith('failed') || event.error_type ? 'bad' : event.outcome === 'ok' ? 'good' : event.phase === 'attempt-start' ? 'start' : '');
+      for (const [className, text] of [['log-time', time], ['log-phase', event.phase || 'event'], ['log-message', message]]) {
+        const span = document.createElement('span'); span.className = className; span.textContent = text; row.append(span);
+      }
+      panel.append(row);
+      lines.push(`${event.at} [${event.phase || 'event'}] ${message}`);
+    }
+    logText = lines.join('\n');
+    if (!tail.length) panel.textContent = 'Waiting for saved events in this run…';
+    panel.scrollTop = following ? panel.scrollHeight : position;
+  }
+  el('terminal-note').textContent = `Last ${tail.length} saved events · refresh 5s · local time · history feed, not raw terminal stdout`;
+}
+function render(data) {
+  const entries = data.articles.filter(a => !['index', 'nav', 'pagination'].includes(a.kind));
+  const recovered = entries.filter(a => a.status === 'ok');
+  const failed = entries.filter(a => (a.status || '').startsWith('failed:'));
+  const pending = entries.length - recovered.length - failed.length;
+  el('recovered').textContent = fmt(recovered.length);
+  el('pending').textContent = fmt(pending);
+  el('failed').textContent = fmt(failed.length);
+  el('progress').max = entries.length || 1;
+  el('progress').value = recovered.length + failed.length;
+  el('coverage').textContent = `${fmt(recovered.length + failed.length)} of ${fmt(entries.length)} eligible entries resolved (${entries.length ? ((recovered.length + failed.length) / entries.length * 100).toFixed(1) : 0}%). Failures count as resolved; pending includes work in progress.`;
+  const run = (data.fetch_runs || []).at(-1);
+  renderLog(entries, run);
+  const results = run?.articles || [];
+  const ok = results.filter(a => a.outcome === 'ok').length;
+  el('run').textContent = run ? `Started ${date(run.started_at)} · ${fmt(results.length)} completed attempts · ${fmt(ok)} recovered · ${fmt(results.length - ok)} failed` : 'No saved fetch run.';
+  let latest = null;
+  for (const article of entries) {
+    for (const event of article.fetch_history || []) {
+      if (event.at && (!latest || event.at > latest.event.at)) latest = {article, event};
+    }
+  }
+  const age = latest ? Math.max(0, (Date.now() - Date.parse(latest.event.at)) / 1000) : Infinity;
+  el('state').textContent = !run ? 'No fetch run recorded' : run.finished_at ? `Run finished ${date(run.finished_at)}` : run.interrupted_at ? `Run paused ${date(run.interrupted_at)}` : age < 180 ? 'Recent activity — run has no recorded end' : 'No recent saved activity — may be waiting, retrying, or stopped';
+  el('activity').textContent = latest ? `${latest.article.title || latest.article.url} · ${latest.event.phase || 'event'}${latest.event.outcome ? ' · ' + latest.event.outcome : ''}${latest.event.attempt ? ' · attempt ' + latest.event.attempt : ''}` : 'No activity saved.';
+  el('freshness').textContent = `Page checked ${new Date().toLocaleTimeString()}${latest ? ' · latest event ' + date(latest.event.at) + ' · ' + Math.floor(age) + ' seconds ago' : ''}`;
+  const counts = new Map();
+  for (const a of failed) counts.set(a.status, (counts.get(a.status) || 0) + 1);
+  el('failures').textContent = [...counts].sort().map(([name, count]) => `${name.replace('failed:', '')}: ${fmt(count)}`).join(' · ') || 'None';
+  const sources = new Map([['author-page', [0, 0, 0]], ['section-page', [0, 0, 0]]]);
+  for (const a of recovered) {
+    const source = a.byline_source || 'unknown';
+    if (!sources.has(source)) sources.set(source, [0, 0, 0]);
+    const verdict = a.byline_verdict || a.byline_status || '';
+    sources.get(source)[verdict === 'sessler' ? 0 : verdict === 'other' || verdict.startsWith('other:') ? 1 : 2]++;
+  }
+  el('bylines').replaceChildren();
+  for (const [source, values] of sources) {
+    const row = document.createElement('tr');
+    for (const value of [source, ...values]) {
+      const cell = document.createElement('td');
+      cell.textContent = typeof value === 'number' ? fmt(value) : value;
+      row.append(cell);
+    }
+    el('bylines').append(row);
+  }
+  const lookup = new Map(entries.flatMap(a => [[a.url, a], [a.body_url, a]]));
+  el('recent').replaceChildren();
+  for (const result of results.slice(-10).reverse()) {
+    const item = document.createElement('li');
+    const article = lookup.get(result.url);
+    item.textContent = `${result.outcome} — `;
+    const link = document.createElement('a');
+    link.textContent = article?.title || result.url;
+    try {
+      const url = new URL(result.url);
+      if (['https:', 'http:'].includes(url.protocol)) { link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; }
+    } catch (_) { /* Keep malformed URLs as text. */ }
+    item.append(link);
+    el('recent').append(item);
+  }
+}
+async function refresh() {
+  try {
+    const response = await fetch(`index.json?t=${Date.now()}`, {cache: 'no-store', signal: AbortSignal.timeout(15000)});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    render(await response.json());
+    el('error').textContent = '';
+  } catch (error) {
+    el('error').textContent = `Could not refresh (${error.message}). Displayed counts may be stale. Open this page through Live Server in the repository root. Retrying in 5 seconds.`;
+  } finally { setTimeout(refresh, 5000); }
+}
+refresh();
+</script>
+</html>

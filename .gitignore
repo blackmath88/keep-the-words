@@ -2,5 +2,6 @@
 articles/
 *.html
 !reader-prototype.html
+!fetch-status.html
 index.json
 __pycache__/

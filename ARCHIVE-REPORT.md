@@ -148,3 +148,14 @@ Resume from repository root:
 Run those sequentially, never concurrently: both write index.json. The fetcher skips existing Markdown and records previous failures before retrying. Keep articles/ intact. Use --repair only for cached body-selector repairs and --reparse-bylines for cached metadata audits. Next full checkpoint: 600 recovered.
 
 Remaining: finish fetching; inspect/fix recoverable failure patterns from cache as warranted; rebuild and structurally verify the final reader; produce the final source/scope/masthead/year/failure report. Current scope and comments decisions are already implemented.
+
+## Resumed pass checkpoint — 600 recovered
+
+Analysis: GPT-6 (Codex), 2026-09-08T06:23:51Z. Full pass remains active.
+
+| Source | Sessler | Other | Unread |
+|---|---:|---:|---:|
+| author-page | 172 | 0 | 1 |
+| section-page | 76 | 342 | 9 |
+
+Scope: 248 sessler / 342 atl-blog / 10 unresolved. Section-page Sessler rate: 17.4% of attempted entries, close to the 16% probe. Unresolved body outcomes: 5 no-capture, 1 CDX-request failure, 5 thin-body. Eight earlier thin-body cases and one invalid-JSON case now have recovered bodies. Full source-specific writer counts and joint credits are persisted in index.json.byline_checkpoints.
