@@ -5,3 +5,6 @@ articles/
 !fetch-status.html
 index.json
 __pycache__/
+analysis.json
+analysis-voice.json
+analysis-voice-eramatched.json
