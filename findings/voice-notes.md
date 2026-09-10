@@ -3,9 +3,12 @@
 Working notes, not prose. Every claim carries article ids and line numbers so it
 can be checked. `slug:NN` means line NN of `articles/<slug>.md`.
 
-Source of the term list: `analysis-voice.json` — 437 Sessler articles (2012–2024)
-against 1,438 by colleagues (2012–2018), log-odds with an informative Dirichlet
-prior, proper nouns and years removed by case, generated 2026-09-10.
+Source of the term list: `data/analysis-voice.json` — 437 Sessler articles
+(2012–2024) against 1,438 by colleagues (2012–2018), log-odds with an informative
+Dirichlet prior, proper nouns and years removed by case.
+
+Every Set A and Set B rate below is reproduced in `data/analysis-matched.json`,
+which ships the set definitions, the member article ids and the per-term rates.
 
 ---
 
@@ -63,7 +66,7 @@ He keeps a *second* vocabulary running alongside it:
 | **cover man** | 1.76 | **0.00** | never |
 
 And he declines the newsroom's shorthand. Position abbreviations across Set A:
-**his 3.96 per 10k against their 8.95 — 0.44×.** QB 1.47 vs 4.34; TE, OC and DB
+**his 3.96 per 10k against their 8.69 — 0.46×.** QB 1.47 vs 4.34; TE, OC and DB
 zero in his briefs. The inverse pair is the cleanest single piece of evidence:
 he writes "first-round pick" at 0.3× the colleague rate and "first-rounder" at
 7.0×. Same referent, substituted.
@@ -80,8 +83,8 @@ Checkable instances, all in short transaction briefs:
   "the 31-year-old cover man".
 - `cortland-finnegan-will-be-released-by-st-louis-rams-8ab11f:49` — "the
   once-physical and reliable cover man".
-- `brandon-flowers-reportedly-contacted-by-10-teams-c3304d:41` — "a third cover
-  man to replace Corey Graham".
+- `brandon-flowers-reportedly-contacted-by-10-teams-c3304d:41` — Baltimore needs
+  "a third cover man"; the player being replaced is named, the position is not.
 
 **Verdict: survives Set A decisively, in both directions, from 2014 onward.**
 
@@ -99,8 +102,8 @@ times larger.
   a backup quarterback is "looking for work come autumn".
 - `michael-bush-signed-by-arizona-cardinals-9863a7:35` (2014-11-25, 206w) — a
   running back's 2013 becomes "the Windy City last autumn".
-- `dolphins-grab-corner-bene-benwikere-off-waivers-21c6d5:37` (2016-10-10) — a
-  secondary "fried by teams through the air this autumn".
+- `dolphins-grab-corner-bene-benwikere-off-waivers-21c6d5:37` (2016-10-10) —
+  a secondary beaten "through the air this autumn".
 - `peterson-id-pick-sam-bradford-to-start-for-cardinals-1b3011:51` (2018-07-13) —
   a team "destined to float through the autumn".
 
@@ -118,9 +121,9 @@ His citation habit attaches the outlet to the person. Pattern `Name of The Paper
 | | hits | words | rate |
 |---|---:|---:|---:|
 | Sessler, Set A briefs | 20 | 68,155 | **2.93** |
-| Colleagues, Set A briefs | 20 | 416,597 | 0.48 |
+| Colleagues, Set A briefs | 22 | 416,597 | 0.53 |
 
-Identical raw counts over a corpus six times the size — **6.1×**.
+Twenty instances against twenty-two, over a corpus six times the size — **5.6×**.
 
 - `arians-justin-bethel-had-best-spring-of-anybody-c60bf8:35` (2014-07-24, 258w)
   — "per Kent Somers of The Arizona Republic".
@@ -133,7 +136,7 @@ In the full analysis this shows up as `mary kay cabot of the plain dealer`
 surviving as one collapsed term — a beat writer at a metro daily, named with her
 paper, in a national outlet that had no obligation to name either.
 
-**Verdict: survives Set A at 6×.**
+**Verdict: survives Set A at 5.6×.**
 
 ---
 
@@ -264,7 +267,7 @@ None of this is measurable with the tools here, and the essay should say so.
 |---|---|
 | Refusal of position shorthand (both directions) | **Survives — strongest** |
 | `autumn` / `campaign` for *season* | Survives, small counts |
-| Reporter named with paper | Survives, 6.1× |
+| Reporter named with paper | Survives, 5.6× |
 | `looms as`, `that saw`, `rough and tumble`, `rugged` | Survives, weakened |
 | Natural-world cluster | **Dies** at brief length; length-dependent only |
 | Martial/political cluster | **Dies** — `war`/`battle` flat |

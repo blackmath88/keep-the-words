@@ -4,7 +4,14 @@ articles/
 !reader-prototype.html
 !fetch-status.html
 index.json
+!data/index.json
 __pycache__/
-analysis.json
-analysis-voice.json
-analysis-voice-eramatched.json
+data/analysis.json
+data/analysis-voice.json
+data/analysis-voice-eramatched.json
+public/
+dist-private/
+.dev.vars
+.wrangler/
+node_modules/
+data/reader-terms.json

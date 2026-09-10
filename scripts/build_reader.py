@@ -11,9 +11,11 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode, quote
 
-INDIR = "articles"
-OUT = "reader/archive.html"
-VOICE_IN = "reader-terms.json"   # produced by analyse.py --voice --keep 300
+ROOT = Path(__file__).resolve().parent.parent
+INDIR = str(ROOT / "articles")
+OUT = str(ROOT / "reader" / "archive.html")
+TEMPLATE = str(ROOT / "scripts" / "reader-prototype.html")
+VOICE_IN = str(ROOT / "data" / "reader-terms.json")   # produced by analyse.py --voice --keep 300
 
 
 def parse_md(path):
@@ -221,7 +223,7 @@ def main():
 
     def pack(value):
         return base64.b64encode(gzip.compress(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode(), mtime=0)).decode()
-    template = open("reader-prototype.html", encoding="utf-8").read()
+    template = open(TEMPLATE, encoding="utf-8").read()
     doc = template.replace("__DATA__", json.dumps([{k:v for k,v in a.items() if k != "text"} for a in arts], ensure_ascii=False).replace("<", "\\u003c"))
     doc = doc.replace("__VOICE__", json.dumps(voice, ensure_ascii=False).replace("<", "\\u003c"))
     doc = doc.replace("__MANIFEST__", manifest)

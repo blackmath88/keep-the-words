@@ -47,11 +47,13 @@ import re
 import sys
 import time
 import unicodedata
+from pathlib import Path
 
 from build_reader import parse_md, norm_date
 
-INDIR = "articles"
-OUT = "analysis.json"
+ROOT = Path(__file__).resolve().parent.parent
+INDIR = str(ROOT / "articles")
+OUT = str(ROOT / "data" / "analysis.json")
 NGRAMS = (1, 2, 3)
 NGRAMS_WIDE = (1, 2, 3, 4)   # --quadgrams: lets the collapse reach "a laundry list of"
 MIN_TARGET_ARTICLES = 3      # a term must appear in at least this many target pieces

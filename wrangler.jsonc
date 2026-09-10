@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "keep-the-words",
+  "compatibility_date": "2026-09-01",
+  "pages_build_output_dir": "public",
+
+  // The gated payload lives here, not in public/. Create the namespace with
+  //   npx wrangler kv namespace create ARCHIVE
+  // and paste the returned id below. Local dev simulates it, so the id can
+  // stay as-is until you are ready to deploy.
+  "kv_namespaces": [
+    { "binding": "ARCHIVE", "id": "6761b54b44ac4711b5231338162078ff" }
+  ]
+
+  // Secrets are never in this file. Set them on the Pages project with:
+  //   npx wrangler pages secret put ARCHIVE_KEY   --project-name keep-the-words
+  //   npx wrangler pages secret put COOKIE_SECRET --project-name keep-the-words
+}

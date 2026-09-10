@@ -1,0 +1,53 @@
+MIT License
+
+Copyright (c) 2026 the keep-the-words authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+WHAT THIS LICENCE COVERS, AND WHAT IT DOES NOT
+================================================================================
+
+COVERED — the code and the writing about the code:
+
+    scripts/            the pipeline
+    functions/          the Cloudflare Worker
+    docs/               ARCHIVE-REPORT.md, METHOD.md
+    essay/, findings/   the essay and the analysis notes
+    data/               the derived data tier (metadata, index, analyses)
+
+NOT COVERED — the recovered articles:
+
+    articles/           1,903 recovered NFL.com articles
+    reader/             a built reader with those article bodies embedded
+    dist-private/       the gated body payload
+
+The article text is copyright NFL Enterprises LLC and the individual writers.
+It is not the authors' to license and no permission to use it is granted or
+implied here.
+
+Those directories are not distributed with this repository. They are rebuilt
+locally from the Internet Archive by the pipeline in scripts/, and they are
+excluded from version control in .gitignore. If you obtain them by running the
+pipeline, your use of them is a matter between you and the rights holders.
+
+data/metadata.json deliberately excludes article bodies and deks. Titles,
+bylines, dates and entity names are retained as bibliographic metadata. The
+essay quotes six phrases totalling 32 words, each under fifteen words and each
+attributed; see the quotation audit in the build.
