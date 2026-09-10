@@ -90,8 +90,8 @@ is used. These are literal matches and heuristics, not semantic analysis.
 The reader retains the prototype's paper/carbon modes, two grain layers,
 hash routes, j/k/Enter/Esc/slash shortcuts, filter chips, live tally, and
 View Transitions fallback. Facets cover year, series, format, team, player,
-byline, and scope. The default scope is Sessler; the byline facet switches
-to ATL blog or unread bylines in one click. Full credits remain visible in
+and byline within the selected collection. Sidebar tabs separate Marc Sessler,
+Around the NFL, and unread bylines. Full credits remain visible in
 the list, including joint credits.
 
 Each piece has recovered text, deterministic source/search links, and a
@@ -107,3 +107,13 @@ writer credits and joint bylines, scope, and cumulative failure classes.
 An eight-percentage-point drift from the 16% section-page probe is flagged
 as a possible month/ID coverage effect. Failed attempts remain in history
 even when a later retry succeeds.
+
+## Reader collections
+
+Open `reader/archive.html`. The sidebar defaults to Marc Sessler (including
+joint Sessler credits). Around the NFL contains every other named author;
+Byline unread holds unresolved credits. Each collection has its own author
+and topic filters. Switching collections clears search and filters.
+
+Use `build_reader.py --no-index-update` to build while a fetch is running
+without writing to its index. Rebuild after recovery finishes for new articles.

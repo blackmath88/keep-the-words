@@ -6,7 +6,7 @@ Reads articles/*.md, embeds everything into one self-contained HTML file.
 No server needed — double-click reader/archive.html.
 """
 
-import json, os, re, glob, html, time
+import json, os, re, glob, html, time, sys
 from datetime import datetime
 from urllib.parse import urlencode, quote
 
@@ -146,7 +146,7 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     open(OUT, "w", encoding="utf-8").write(doc)
     # Keep date gaps as structured evidence; do not manufacture a year-only date.
-    if os.path.exists("index.json"):
+    if "--no-index-update" not in sys.argv and os.path.exists("index.json"):
         data = json.load(open("index.json"))
         data.setdefault("reader_builds", []).append({"at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                                                       "articles": len(arts), "undated": undated})

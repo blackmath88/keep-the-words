@@ -159,3 +159,15 @@ Analysis: GPT-6 (Codex), 2026-09-08T06:23:51Z. Full pass remains active.
 | section-page | 76 | 342 | 9 |
 
 Scope: 248 sessler / 342 atl-blog / 10 unresolved. Section-page Sessler rate: 17.4% of attempted entries, close to the 16% probe. Unresolved body outcomes: 5 no-capture, 1 CDX-request failure, 5 thin-body. Eight earlier thin-body cases and one invalid-JSON case now have recovered bodies. Full source-specific writer counts and joint credits are persisted in index.json.byline_checkpoints.
+
+## Reader collection update — GPT-6 Codex, 2026-09-10
+
+User-approved plan: separate Marc Sessler from all other named writers under
+Around the NFL, with unread bylines separately accessible. This is a reader
+collection decision; stored provenance and scope metadata remain intact.
+Built 1,903 articles: 437 Sessler (including joint credits), 1,438 other
+bylines, 28 unread. Collection-local filters include full byline strings.
+Structural checks passed: all Markdown articles embedded exactly once,
+nonempty bodies, template replacement, JavaScript syntax, collection
+separation and author filtering. No visual verification performed.
+The build used --no-index-update to avoid racing the seven-entry retry.

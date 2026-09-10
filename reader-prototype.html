@@ -69,6 +69,10 @@ button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:p
 .index{padding-right:30px;border-right:1px solid var(--rule);align-self:start;position:sticky;top:86px;max-height:calc(100vh - 110px);overflow-y:auto}
 .reading{padding-left:36px;min-width:0}
 
+.collections{margin-bottom:28px;border-bottom:1px solid var(--rule);padding-bottom:18px}
+.collections button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:10px 8px;color:var(--mut);border-left:3px solid transparent}
+.collections button[aria-pressed="true"]{color:var(--fg);border-left-color:var(--fg);font-weight:700}
+.collections .c{font-family:var(--mono);font-size:11px}
 .facet{margin-bottom:24px}
 .facet h2{margin:0 0 8px;font-family:var(--sans);font-size:11px;font-weight:700;color:var(--mut);letter-spacing:.14em}
 .facet button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;font-size:14px;padding:3px 0;color:var(--mut);transition:color .12s}
@@ -166,22 +170,26 @@ button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:p
 <script>
 const DATA=__DATA__;
 const CONC=__CONCORDANCE__;
-const AXES=["year","series","format","team","player","byline","scope"];
+const AXES=["year","series","format","team","player","byline"];
 
-let q="",facet={scope:"sessler"},cur=-1,open=null,rows=[];
+let q="",facet={},collection="sessler",cur=-1,open=null,rows=[];
 const el=i=>document.getElementById(i);
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const bylabel=a=>a.scope==="sessler"?"Sessler":a.scope==="atl-blog"?"ATL blog":"Byline unread";
-const vals=(a,k)=>k==="year"?[String(a.y)]:k==="series"?(a.series?[a.series]:[]):k==="format"?[a.fmt]:k==="team"?a.teams:k==="player"?a.players:k==="scope"?[a.scope]:[bylabel(a)];
+const bucket=a=>a.verdict==="sessler"?"sessler":a.verdict==="other"?"atl":"unread";
+const bylabel=a=>bucket(a)==="sessler"?"Marc Sessler":bucket(a)==="atl"?"Around the NFL":"Byline unread";
+const vals=(a,k)=>k==="year"?[String(a.y)]:k==="series"?(a.series?[a.series]:[]):k==="format"?[a.fmt]:k==="team"?a.teams:k==="player"?a.players:[a.byline_raw||"Byline unread"];
 
 function buildFacets(){
-  el("index").innerHTML=AXES.map(k=>{
-    const g={};DATA.forEach(a=>vals(a,k).forEach(v=>g[v]=(g[v]||0)+1));
+  el("index").innerHTML=`<section class="collections" aria-label="Archive collections">`+[["sessler","Marc Sessler"],["atl","Around the NFL"],["unread","Byline unread"]].map(([v,label])=>`<button data-collection="${v}" aria-pressed="${collection===v}"><span>${label}</span><span class="c">${DATA.filter(a=>bucket(a)===v).length}</span></button>`).join("")+`</section>`+AXES.map(k=>{
+    const g={};DATA.filter(a=>bucket(a)===collection).forEach(a=>vals(a,k).forEach(v=>g[v]=(g[v]||0)+1));
     return `<section class="facet"><h2>${k}</h2>`+Object.entries(g)
       .sort((a,b)=>b[1]-a[1]||String(a[0]).localeCompare(String(b[0])))
       .map(([v,c])=>`<button data-k="${k}" data-v="${esc(v)}" aria-pressed="${facet[k]===v}"><span>${esc(v)}</span><span class="c">${c}</span></button>`).join("")+`</section>`;
   }).join("");
-  el("index").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  el("index").querySelectorAll("[data-collection]").forEach(b=>b.onclick=()=>{
+    collection=b.dataset.collection;facet={};q="";el("q").value="";cur=-1;open=null;history.replaceState(null,"",location.pathname+location.search);sync();
+  });
+  el("index").querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{
     const{k,v}=b.dataset; facet[k]=facet[k]===v?undefined:v; if(k==="byline")facet.scope=undefined; if(k==="scope")facet.byline=undefined; cur=-1; open=null; history.replaceState(null,"",location.pathname+location.search); sync();
   });
 }
@@ -196,6 +204,7 @@ function chips(){
 }
 
 function match(a){
+  if(bucket(a)!==collection)return false;
   if(q&&!(a.t+" "+a.d+" "+a.series+" "+a.text).toLowerCase().includes(q))return false;
   return AXES.every(k=>!facet[k]||vals(a,k).includes(facet[k]));
 }
@@ -250,7 +259,7 @@ function sync(){
 
 function route(){
   const m=location.hash.match(/^#p([a-z0-9-]+)$/);
-  open=m&&DATA.some(a=>a.id===m[1])?m[1]:null; if(open)cur=-1;
+  open=m&&DATA.some(a=>a.id===m[1])?m[1]:null; if(open){cur=-1;const target=bucket(DATA.find(a=>a.id===open));if(target!==collection){collection=target;facet={};q="";el("q").value="";}}
   sync(); if(open)window.scrollTo({top:0,behavior:"instant"});
 }
 
