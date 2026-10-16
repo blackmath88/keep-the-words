@@ -1,4 +1,15 @@
+<!-- BEGIN public-repo-header -->
+<div align="center">
+
 # keep-the-words
+
+<a href="https://github.com/blackmath88/keep-the-words"><img alt="Primary language: Python" src="https://img.shields.io/badge/language-Python-526078?style=flat"></a>
+<a href="https://github.com/blackmath88/keep-the-words/tree/main/docs"><img alt="Documentation" src="https://img.shields.io/badge/docs-guide-16796f?style=flat"></a>
+<a href="https://github.com/blackmath88/keep-the-words/blob/main/LICENSE"><img alt="License: see file" src="https://img.shields.io/badge/license-see%20file-737373?style=flat"></a>
+<a href="https://github.com/blackmath88/keep-the-words/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/blackmath88/keep-the-words?style=flat&amp;color=737373"></a>
+
+</div>
+<!-- END public-repo-header -->
 
 A recovered archive of Marc Sessler's NFL.com writing, the newsroom around him,
 and a deterministic analysis of what separates his prose from theirs.
